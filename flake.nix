@@ -38,7 +38,7 @@
 
           environment.systemPackages = with pkgs; [
             asciinema bat btop gh gitui go slack element-desktop mas rustup starship
-            nodejs yarn tmux jq ko syft bunyan-rs direnv htop helix zellij lsd
+            nodejs yarn bun tmux jq ko syft bunyan-rs direnv htop helix zellij lsd
             ripgrep yazi zoxide fzf alacritty wezterm viu buf crane gdk awscli2
             nixpkgs-fmt eza hyperfine claude-code
            ];
