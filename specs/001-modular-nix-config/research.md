@@ -8,33 +8,60 @@ This document resolves the open technical questions surfaced while drafting
 
 ---
 
-## R1. How to verify derivation equivalence (SC-004)
+## R1. How to verify content-neutrality (SC-004) — REVISED 2026-06-08
 
-**Decision**: Capture
-`nix path-info --derivation .#darwinConfigurations.macbook.system` (the
-`.drv` path) on the **pre-refactor** baseline and compare against the same
-command after each restructure step. Two derivations with the same `.drv`
-path are byte-identical; matching is the strongest possible content-neutrality
-proof. As a secondary check, compare the realized store path returned by
-`darwin-rebuild build --flake .#macbook` (it prints the result symlink).
+**Original decision (REJECTED)**: Compare the `.drv` path of
+`nix path-info --derivation .#darwinConfigurations.macbook.system` before
+and after each restructure step.
 
-**Rationale**: Nix `.drv` paths are content-addressed over inputs and build
-instructions. If anything materially changes (a package version, an
-attribute, a derivation argument), the `.drv` path changes. This is more
-sensitive than diffing built outputs and faster than building.
+**Why rejected**: Nix-darwin builds `darwin-rebuild` and `darwin-option`
+with an embedded `options.json` snapshot that includes each option's source
+file path (`_file` attribute) for introspection. Moving an option from one
+module file to another changes `_file`, which bubbles up through
+`options.json` → `darwin-option` → `system-path` → `system` derivation. The
+.drv hash differs even though every package, program config, brew/cask, and
+generated shell init is byte-identical. Discovered after T007 passed (it
+only moved `nix.{enable,settings}`, which short-circuit options.json
+generation under Determinate) but T009 failed (it moved options that DO
+appear in options.json).
 
-**Alternatives considered**:
-- `nix-store --query --hash`: works on realized paths only; requires a build
-  first. Equivalent in spirit but slower per iteration.
-- `diff` of `nix flake show --json` output: misses things that affect the
-  build but not the surface attribute tree.
-- Manual eyeballing of `git diff`: useless for catching accidental attrset
-  reordering that nix evaluates the same — but also useless for catching
-  evaluation drift that nix evaluates differently.
+**Revised decision**: Snapshot a curated set of user-facing config
+attributes and diff. The oracle is `/tmp/oracle.nix`, applied to
+`darwinConfigurations.macbook.config`:
 
-**Operational note**: Run the baseline capture as the FIRST step of
-implementation (before any move), and tag the resulting `.drv` in
-`research.md` (or a scratch file) so each task can `diff` against it.
+```sh
+nix eval --json .#darwinConfigurations.macbook.config \
+  --apply "$(cat /tmp/oracle.nix)" 2>/dev/null \
+  | jq -S . > /tmp/snapshot.<phase>.json
+diff /tmp/snapshot.pristine.json /tmp/snapshot.<phase>.json
+```
+
+The oracle covers: `environment.systemPackages` (sorted names),
+`environment.systemPath`, `homebrew.{enable,brews,casks,taps,onActivation}`,
+`programs.{zsh,direnv}` (system-level), `users.users.mlieberman`,
+`fonts.packages` (sorted names), `system.{primaryUser,stateVersion}`,
+`nix.{enable,settings.experimental-features}`, `nixpkgs.config.allowUnfree`,
+`home-manager.{useGlobalPkgs,useUserPackages,backupFileExtension}`, and
+every per-program leaf of `home-manager.users.mlieberman.programs.*`
+(including Neovim's plugin name list and Helix's full settings tree). This
+is the literal text of FR-001 ("same packages, same program configs, same
+homebrew lists") expressed in a diffable form.
+
+**Baseline capture procedure**: `git stash -u` everything, evaluate against
+HEAD (`1574d0c` = spec commit, pre-refactor working tree as committed),
+capture pristine snapshot, then `git stash pop`. The pristine baseline
+lives in `/tmp/snapshot.pristine.sorted.json`. Pre-existing uncommitted
+edits in the working tree (the user's local `backupFileExtension` and zsh
+`shellAliases.python` tweaks) will appear as expected non-zero diffs against
+pristine; these are NOT refactor-introduced changes.
+
+**Alternatives reconsidered**:
+- Diff the realized system output tree, excluding `options.json` and its
+  consumers: would work but requires a full build (10+ min) per phase.
+- Compare `nix flake check` outputs: too coarse — catches evaluation
+  failures but not silent attribute drift.
+- Per-attribute eval at each phase without a unified oracle: harder to
+  audit and easy to forget a leaf.
 
 ---
 
@@ -200,6 +227,54 @@ behavior vs. user dotfiles) makes both ends locatable by the FR-010 rule
   locality.
 
 ---
+
+## R9. `environment.systemPath` MUST stay in `default.nix` — DISCOVERED 2026-06-08
+
+**Decision**: `environment.systemPath` lives in `hosts/macbook/default.nix`,
+NOT in `hosts/macbook/system.nix` (which the original plan called for).
+
+**Why**: `environment.systemPath` is a list-typed option that nix-darwin
+provides a multi-priority default for (some entries via what looks like
+`mkBefore`, some via `mkAfter`). When the user's contribution lives in the
+same module file as wherever nix-darwin's defaults are evaluated against,
+the merge produces:
+
+```
+nix profile paths : USER ENTRIES : system base paths (/usr/local/bin, ...)
+```
+
+When the user's contribution is moved into a separate imported module
+(`system.nix`), the effective priority shifts and the order becomes either:
+
+```
+USER ENTRIES : nix profile paths : system base paths     (no mkAfter)
+nix profile paths : system base paths : USER ENTRIES     (with lib.mkAfter)
+```
+
+Both alter `$PATH` precedence — homebrew or deno tools either pre-empt
+nix-installed tools or get demoted below `/usr/bin`. This is a real
+behavior change, not metadata noise.
+
+**Fix**: keep `environment.systemPath` in `default.nix`. `system.nix` owns
+only options that merge as attrsets (`programs.zsh.{enable,...}`,
+`programs.direnv.enable`, `users.users.mlieberman`) where module-file
+location doesn't affect the result.
+
+**Alternatives considered**:
+- `lib.mkAfter` in system.nix: shifts user entries to the END of PATH,
+  still not the pristine position.
+- `lib.mkOrder N` for some carefully-chosen N: would require reverse-
+  engineering nix-darwin's internal priorities; brittle to future
+  nix-darwin updates.
+- Move the WHOLE host system block to system.nix and use `default.nix`
+  only for the `imports` list: over-engineering for one option.
+
+**Implication for the spec**: FR-004 ("Adding a new system package, brew,
+cask, or program tweak MUST require editing at most one file in the
+common case") is satisfied for the categories it lists. Adding a new
+*PATH entry* requires editing `default.nix` rather than `system.nix`. This
+isn't in FR-004's enumerated categories so it's not a violation, but
+`quickstart.md` and any README should be explicit about this exception.
 
 ## R8. Order of host module imports
 

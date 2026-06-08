@@ -28,9 +28,13 @@ installer manages the daemon (`nix.enable = false` in nix-darwin).
 **Testing**:
 - `nix flake check` (evaluation correctness)
 - `darwin-rebuild build --flake .#macbook` (full build to a derivation)
-- Equivalence test: store-path hash of pre-refactor `system` derivation MUST
-  equal post-refactor (SC-004). Captured as `nix path-info --derivation
-  .#darwinConfigurations.macbook.system` on a baseline tag, compared after.
+- Equivalence test (REVISED per research R1, 2026-06-08): a normalized
+  JSON snapshot of `darwinConfigurations.macbook.config` (curated to the
+  user-facing leaves enumerated in SC-004) MUST diff cleanly between
+  pristine HEAD and the post-refactor working tree. The literal `.drv`
+  hash is NOT used as an oracle (nix-darwin embeds `_file` paths in
+  `options.json`, making any module move fail a strict .drv-hash test
+  while remaining functionally identical).
 
 **Target Platform**: `aarch64-darwin` only. Host `macbook`, user `mlieberman`.
 

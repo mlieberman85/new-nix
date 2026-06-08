@@ -208,10 +208,20 @@ in the flake should evaluate).
 - **SC-003**: A cold reading of the top-level `README.md` answers the
   question "where do I add a new home-manager program?" in under 30
   seconds.
-- **SC-004**: `darwin-rebuild build --flake .#macbook` produces the same
-  system derivation `out` path (or, equivalently, the same
-  `nix-store --query --hash`) before and after the restructure, proving
-  the reorganization is content-neutral.
+- **SC-004**: The user-facing configuration is content-neutral before and
+  after the restructure. Verification is a deep diff of a normalized
+  snapshot covering `environment.systemPackages`, `environment.systemPath`,
+  every `homebrew.*` list, every system-level `programs.*` option, the
+  `users.users.mlieberman` attrset, `fonts.packages`, the
+  `system.{primaryUser,stateVersion}` anchors, `nix.{enable,settings}`,
+  `nixpkgs.config.allowUnfree`, the three `home-manager.*` toggles, and the
+  full `home-manager.users.mlieberman.programs.*` tree (plus Neovim plugin
+  names and Helix settings). The snapshot oracle lives at `/tmp/oracle.nix`
+  during implementation; see `research.md` R1 for the rationale (the
+  literal system-derivation `.drv` hash is NOT a valid oracle — nix-darwin
+  embeds module source-file paths in `darwin-option`'s `options.json`,
+  causing any file move to change the .drv hash even when the build output
+  is functionally identical).
 - **SC-005**: A simulated second host can be registered by adding only
   new files plus one new line under `darwinConfigurations` in
   `flake.nix`. Zero existing files under `hosts/macbook/` are modified

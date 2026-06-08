@@ -51,6 +51,8 @@ This document is the single source of truth for the post-refactor layout.
 - `system.stateVersion = 4;`
 - `nixpkgs.config.allowUnfree = true;`
 - `fonts.packages = [ ] ++ builtins.filter lib.attrsets.isDerivation (builtins.attrValues pkgs.nerd-fonts);`
+- `environment.systemPath = [ "/opt/homebrew/bin" "/Users/mlieberman/.deno/bin" ];`
+  — moved here from system.nix per R9 to preserve `$PATH` merge order.
 - `home-manager.useGlobalPkgs = true;`
 - `home-manager.useUserPackages = true;`
 - `home-manager.backupFileExtension = "hm-bak";`
@@ -102,11 +104,15 @@ via `nix eval .#darwinConfigurations.macbook.config.environment.systemPackages
 ## Entity: System module (`hosts/macbook/system.nix`)
 
 **Owns**:
-- `environment.systemPath = [ "/opt/homebrew/bin" "/Users/mlieberman/.deno/bin" ];`
 - `programs.zsh = { enable = true; enableSyntaxHighlighting = true; enableFzfHistory = true; };`
   (system-level zsh; user-level zsh lives in `home/mlieberman/programs/zsh.nix` — see R7)
 - `programs.direnv.enable = true;`
 - `users.users.mlieberman = { name = "mlieberman"; home = "/Users/mlieberman"; };`
+
+**Does NOT own** (REVISED per R9, 2026-06-08):
+- `environment.systemPath` lives in `hosts/macbook/default.nix`, NOT here.
+  Moving it changes the merge order with nix-darwin's multi-priority
+  defaults and silently alters `$PATH` precedence.
 
 ---
 

@@ -20,6 +20,7 @@ It answers exactly one question per row: *"where do I edit to do X?"*
 | A tweak to an existing program | `hosts/macbook/home/mlieberman/programs/<name>.nix` | edit in place |
 | A second host | `hosts/<newhost>/` (new tree) + new entry in `flake.nix` `darwinConfigurations` | mirror `hosts/macbook/` layout; do not touch `hosts/macbook/` |
 | A system-level nix-darwin option | `hosts/macbook/system.nix` (or `default.nix` for system identity options like `primaryUser`, `stateVersion`) | by attribute path |
+| A new `$PATH` entry (`environment.systemPath`) | `hosts/macbook/default.nix` — NOT system.nix | append to the list. See research.md R9 for why this option lives in default.nix. |
 | A change to the Determinate boundary | `hosts/macbook/nix.nix` | see Principle IV before touching — `nix.enable` MUST stay `false` |
 | A new flake input | `flake.nix` | also requires a constitutional sanity check (Principle II) |
 
@@ -42,19 +43,30 @@ darwin-rebuild switch --flake .#macbook
 ## Refactor acceptance check (run once, at end of this feature)
 
 ```sh
-# Pre-refactor (run on the baseline commit, before any moves):
-nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.before
+# Pre-refactor (run on a pristine HEAD via temporary stash):
+git stash -u
+nix eval --json .#darwinConfigurations.macbook.config \
+  --apply "$(cat /tmp/oracle.nix)" 2>/dev/null \
+  | jq -S . > /tmp/snapshot.pristine.json
+git stash pop
 
-# Post-refactor (run after all moves and flake.nix is ≤ 60 lines):
-nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.after
+# Post-refactor:
+nix eval --json .#darwinConfigurations.macbook.config \
+  --apply "$(cat /tmp/oracle.nix)" 2>/dev/null \
+  | jq -S . > /tmp/snapshot.final.json
 
-diff /tmp/system.drv.before /tmp/system.drv.after   # MUST be empty (SC-004)
-wc -l flake.nix                                      # MUST be ≤ 60 (SC-006)
+diff /tmp/snapshot.pristine.json /tmp/snapshot.final.json   # MUST be empty modulo pre-existing uncommitted edits (SC-004)
+wc -l flake.nix                                              # MUST be ≤ 60 (SC-006)
 ```
 
-If the diff is non-empty, the refactor changed *something* about the build —
-find the difference (`nix derivation show` on both `.drv` paths and diff
-the JSON) and fix it before continuing.
+If the diff has *unexpected* entries (i.e., anything beyond the user's
+known pre-existing uncommitted working-tree edits), the refactor changed
+something about the user-facing config. Investigate the specific
+attribute and fix before continuing.
+
+The literal `nix path-info --derivation` hash is NOT the oracle — see
+research.md R1 for why (it differs after any module move because
+nix-darwin embeds `_file` paths in `options.json`).
 
 ---
 

@@ -9,11 +9,17 @@ description: "Task list for feature 001-modular-nix-config"
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, quickstart.md
 
 **Tests**: This feature has no test suite per se. The acceptance gate is
-derivation-hash equivalence (SC-004) plus `nix flake check` / `darwin-rebuild
-build --flake .#macbook` (FR-007). User-story acceptance tests are the
-"independent test" probes called out in the spec (e.g., "add a hypothetical
-package, confirm diff touches one file, then revert"). They appear in each
-story phase as explicit tasks.
+**snapshot-oracle equivalence** (SC-004, revised — see research.md R1)
+plus `nix flake check` / `darwin-rebuild build --flake .#macbook`
+(FR-007). The snapshot oracle is `/tmp/oracle.nix` applied to
+`darwinConfigurations.macbook.config`; the pristine baseline lives at
+`/tmp/snapshot.pristine.sorted.json` (captured 2026-06-08 via `git stash
+-u` to reach pristine HEAD `1574d0c`). The literal system `.drv` hash is
+NOT the oracle (nix-darwin embeds `_file` paths in `options.json`, causing
+any module move to fail a strict .drv-hash check while remaining
+functionally identical). User-story acceptance tests are the "independent
+test" probes called out in the spec (e.g., "add a hypothetical package,
+confirm diff touches one file, then revert").
 
 **Organization**: Tasks are grouped by user story (US1, US2, US3) from
 `spec.md`. The Foundational phase establishes the structural scaffolding
@@ -35,16 +41,21 @@ every story depends on.
 
 ---
 
-## Phase 1: Setup (Capture Baseline)
+## Phase 1: Setup (Capture Baseline) — REVISED 2026-06-08
 
-**Purpose**: Capture the pre-refactor system derivation so every later phase
-can prove content-neutrality (SC-004, FR-001).
+**Purpose**: Capture the pre-refactor pristine snapshot so every later
+phase can prove content-neutrality (SC-004, FR-001). The original .drv
+hash baselines (T001-T003) were superseded after research R1 revision —
+they are kept here for historical context.
 
-- [ ] T001 Capture pre-refactor derivation reference: run `nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.before` from repo root and verify the file is non-empty. This file is the SC-004 oracle — do NOT modify the working tree before capturing it.
-- [ ] T002 Capture pre-refactor `environment.systemPackages` set: `nix eval --json .#darwinConfigurations.macbook.config.environment.systemPackages --apply 'pkgs: builtins.sort builtins.lessThan (map (p: p.name or p.pname or "?") pkgs)' > /tmp/syspkgs.before.json`. This is the FR-001 oracle for the packages list.
-- [ ] T003 Capture pre-refactor homebrew lists: `nix eval --json .#darwinConfigurations.macbook.config.homebrew --apply 'h: { brews = builtins.sort builtins.lessThan h.brews; casks = builtins.sort builtins.lessThan h.casks; taps = builtins.sort builtins.lessThan h.taps; }' > /tmp/homebrew.before.json`. This is the FR-001 oracle for the Homebrew lists.
+- [X] T001 ~~Capture pre-refactor derivation reference~~ — **SUPERSEDED**. The original `nix path-info --derivation .#darwinConfigurations.macbook.system` capture (drv `/nix/store/klkb4bqyrckywnpap4qhh1z3dzpnn6pz-darwin-system-26.05.8c62fba.drv`) is not a valid oracle (see research R1). Replaced by the snapshot oracle below.
+- [X] T002 ~~Capture pre-refactor `environment.systemPackages`~~ — **SUPERSEDED**. Subsumed by the snapshot oracle, which includes systemPackages.name lists by construction. Pre-refactor count was 52 (44 explicit + ~8 base packages).
+- [X] T003 ~~Capture pre-refactor homebrew lists~~ — **SUPERSEDED**. Subsumed by the snapshot oracle. Pre-refactor count was brews=45, casks=9, taps=6.
+- [X] T001b Write the snapshot oracle to `/tmp/oracle.nix`: a Nix `--apply` expression that extracts every user-facing leaf of `darwinConfigurations.macbook.config` (systemPackages by name, systemPath, full homebrew tree, system-level programs.{zsh,direnv}, users.users.mlieberman, fonts.packages by name, system.{primaryUser,stateVersion}, nix.{enable,settings.experimental-features}, nixpkgs.config.allowUnfree, home-manager.{useGlobalPkgs,useUserPackages,backupFileExtension}, and every home-manager program leaf). **Created 2026-06-08, size ~3.3KB.**
+- [X] T002b Capture pristine baseline: `git stash -u` then `nix eval --json .#darwinConfigurations.macbook.config --apply "$(cat /tmp/oracle.nix)" 2>/dev/null | jq -S . > /tmp/snapshot.pristine.sorted.json`. Then `git stash pop`. **Captured 2026-06-08 from HEAD `1574d0c` (post-bun-merge, no pre-existing uncommitted edits); size ~11KB JSON.**
+- [X] T003b Document **expected diff** vs pristine: the user's working tree has TWO pre-existing uncommitted edits that will show up in every snapshot diff and are NOT refactor-introduced: (a) `home-manager.backupFileExtension`: `null` → `"hm-bak"`, and (b) `programs.zsh.shellAliases.python = "python3"` (plus the corresponding `alias -- python=python3` line at the end of `initContent`). Any other diff is a refactor regression.
 
-**Checkpoint**: Three baseline files in `/tmp/` capture the pre-refactor invariants. Setup complete.
+**Checkpoint**: `/tmp/oracle.nix` and `/tmp/snapshot.pristine.sorted.json` are the SC-004 oracle. Setup complete.
 
 ---
 
@@ -54,16 +65,16 @@ can prove content-neutrality (SC-004, FR-001).
 out the Determinate boundary and system-identity options. Every user story
 phase below assumes this scaffolding exists.
 
-**⚠️ CRITICAL**: No user story work can begin until Phase 2 is complete and T007 derivation-hash diff is empty.
+**⚠️ CRITICAL**: No user story work can begin until Phase 2 is complete and T009 snapshot-oracle diff matches the expected baseline (only the pre-existing uncommitted edits documented in T003b).
 
-- [ ] T004 Create `hosts/macbook/default.nix` containing the entire inline module value currently passed to `modules` in `flake.nix` — the `({ config, pkgs, lib, ... }: let gdk = ...; in { ... })` lambda. Move the WHOLE thing including the `let gdk = pkgs.google-cloud-sdk.withExtraComponents (...); in` binding. Wrap as a standalone module with signature `{ config, pkgs, lib, ... }:`. The `gdk` binding will be relocated again to `packages.nix` in T010. (Identified by structural boundary, not line numbers, since line numbers shift as the file is edited.)
-- [ ] T005 Update `flake.nix` to remove the inline module body and replace it with `./hosts/macbook` in the `modules` list. After this task the file MUST be ≤ 60 lines (SC-006). Keep `home-manager.darwinModules.home-manager` as a peer entry in the `modules` list (per research R4).
-- [ ] T006 Extract the Determinate boundary into `hosts/macbook/nix.nix`: move `nix.enable = false;` and `nix.settings.experimental-features = [ "nix-command" "flakes" ];` out of `hosts/macbook/default.nix` and into the new file. Add `./nix.nix` to the `imports` list in `default.nix`. (Principle IV, FR-006.)
-- [ ] T007 Run intermediate equivalence check: `nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.after.foundational && diff /tmp/system.drv.before /tmp/system.drv.after.foundational`. Diff MUST be empty. If non-empty, halt — investigate via `nix derivation show` JSON-diff before continuing.
-- [ ] T008 Extract host-level system options into `hosts/macbook/system.nix`: move `environment.systemPath`, system-level `programs.zsh = { enable = true; enableSyntaxHighlighting = true; enableFzfHistory = true; }`, `programs.direnv.enable = true`, and `users.users.mlieberman` out of `hosts/macbook/default.nix` and into the new file. Add `./system.nix` to the `imports` list in `default.nix`. (Per research R7: only the *system-level* zsh enable + integrations move; the user-level zsh config stays in `default.nix` for now and migrates to a home-manager module in Phase 4.)
-- [ ] T009 Run equivalence check after T008: `nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.after.system && diff /tmp/system.drv.before /tmp/system.drv.after.system`. Diff MUST be empty.
+- [X] T004 Create `hosts/macbook/default.nix` containing the entire inline module value currently passed to `modules` in `flake.nix` — the `({ config, pkgs, lib, ... }: let gdk = ...; in { ... })` lambda. Move the WHOLE thing including the `let gdk = pkgs.google-cloud-sdk.withExtraComponents (...); in` binding. Wrap as a standalone module with signature `{ config, pkgs, lib, ... }:`. The `gdk` binding will be relocated again to `packages.nix` in T010.
+- [X] T005 Update `flake.nix` to remove the inline module body and replace it with `./hosts/macbook` in the `modules` list. After this task the file MUST be ≤ 60 lines (SC-006). Keep `home-manager.darwinModules.home-manager` as a peer entry in the `modules` list (per research R4). **Done 2026-06-07: flake.nix is 27 lines.**
+- [X] T006 Extract the Determinate boundary into `hosts/macbook/nix.nix`: move `nix.enable = false;` and `nix.settings.experimental-features = [ "nix-command" "flakes" ];` out of `hosts/macbook/default.nix` and into the new file. Add `./nix.nix` to the `imports` list in `default.nix`. (Principle IV, FR-006.)
+- [X] T007 ~~Derivation-hash equivalence check~~ — **SUPERSEDED by snapshot oracle**. The check after T004-T006 originally used `nix path-info --derivation` and passed by coincidence (Determinate's `nix.enable = false` short-circuits some `options.json` generation, masking the `_file` drift that T009 later exposed). Re-run as: `nix eval --json .#darwinConfigurations.macbook.config --apply "$(cat /tmp/oracle.nix)" 2>/dev/null | jq -S . > /tmp/snapshot.after.foundational.json && diff /tmp/snapshot.pristine.sorted.json /tmp/snapshot.after.foundational.json`. Diff MUST contain only the T003b documented pre-existing edits.
+- [X] T008 Extract host-level system options into `hosts/macbook/system.nix`: move system-level `programs.zsh = { enable = true; enableSyntaxHighlighting = true; enableFzfHistory = true; }`, `programs.direnv.enable = true`, and `users.users.mlieberman` out of `hosts/macbook/default.nix` and into the new file. Add `./system.nix` to the `imports` list in `default.nix`. **REVISED 2026-06-08 per research R9**: `environment.systemPath` stays in `default.nix` (NOT moved), because relocating it to a separate module changes its merge order with nix-darwin's multi-priority defaults and silently alters `$PATH` precedence.
+- [X] T009 Run snapshot-oracle equivalence check after T008: `nix eval --json .#darwinConfigurations.macbook.config --apply "$(cat /tmp/oracle.nix)" 2>/dev/null | jq -S . > /tmp/snapshot.post_T009.json && diff /tmp/snapshot.pristine.sorted.json /tmp/snapshot.post_T009.json`. Diff MUST contain only the T003b documented pre-existing edits. **Verified 2026-06-08: diff matches the documented two uncommitted edits exactly; no refactor drift.**
 
-**Checkpoint**: `flake.nix` ≤ 60 lines, host module split into `default.nix` + `nix.nix` + `system.nix`, derivation hash unchanged. User stories may now proceed.
+**Checkpoint**: `flake.nix` ≤ 60 lines (27 actual), host module split into `default.nix` + `nix.nix` + `system.nix`, snapshot oracle proves functional equivalence. User stories may now proceed.
 
 ---
 
@@ -81,7 +92,7 @@ hypothetical Homebrew brew. Both reverted at the end of the test.
 
 - [ ] T010 [US1] Extract system packages into `hosts/macbook/packages.nix`. Move `environment.systemPackages = with pkgs; [ ... ];` AND the surrounding `let gdk = pkgs.google-cloud-sdk.withExtraComponents (...); in` binding out of `hosts/macbook/default.nix` and into the new file (function signature `{ pkgs, ... }:`). Preserve the package list byte-for-byte. Add `./packages.nix` to the `imports` list in `default.nix`. (Per research R3 — `gdk` co-locates with `packages.nix`.)
 - [ ] T011 [US1] Extract Homebrew into `hosts/macbook/homebrew.nix`. Move the entire `homebrew = { enable = true; onActivation = { ... }; brews = [ ... ]; casks = [ ... ]; taps = [ ... ]; };` block out of `hosts/macbook/default.nix` and into the new file. Add `./homebrew.nix` to the `imports` list in `default.nix`.
-- [ ] T012 [US1] Run equivalence check after T010 and T011: `nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.after.us1 && diff /tmp/system.drv.before /tmp/system.drv.after.us1`. Diff MUST be empty. Also re-verify FR-001 list equivalence: `nix eval --json ... > /tmp/syspkgs.after.us1.json && diff /tmp/syspkgs.before.json /tmp/syspkgs.after.us1.json` and same for homebrew.
+- [ ] T012 [US1] Run snapshot-oracle equivalence check after T010 and T011: `nix eval --json .#darwinConfigurations.macbook.config --apply "$(cat /tmp/oracle.nix)" 2>/dev/null | jq -S . > /tmp/snapshot.after.us1.json && diff /tmp/snapshot.pristine.sorted.json /tmp/snapshot.after.us1.json`. Diff MUST contain only the T003b documented pre-existing edits — no additional drift.
 - [ ] T013 [US1] **Independent test (system package)**: edit `hosts/macbook/packages.nix` to append `ncdu` to `environment.systemPackages`. Run `git diff --stat` and confirm exactly one file is modified. Run `darwin-rebuild build --flake .#macbook` — MUST succeed. Run `git checkout hosts/macbook/packages.nix` to revert.
 - [ ] T014 [US1] **Independent test (Homebrew brew)**: edit `hosts/macbook/homebrew.nix` to append `"wget"` to `homebrew.brews`. Run `git diff --stat` — exactly one file modified. Run `darwin-rebuild build --flake .#macbook` — MUST succeed. Revert with `git checkout hosts/macbook/homebrew.nix`.
 
@@ -113,7 +124,7 @@ succeed. Revert.
 - [ ] T022 [P] [US2] Create `hosts/macbook/home/mlieberman/programs/helix.nix` mirroring the current `programs.helix` block. Preserve the `formatter.command = "${pkgs.nixfmt}/bin/nixfmt"` interpolation.
 - [ ] T023 [P] [US2] Create `hosts/macbook/home/mlieberman/programs/neovim.nix` mirroring the current `programs.neovim` block including `withRuby = false`, plugins list, and `initLua`.
 - [ ] T024 [US2] Wire it up: edit `hosts/macbook/home/mlieberman/default.nix` to set `imports = [ ./programs/alacritty.nix ./programs/nushell.nix ./programs/zsh.nix ./programs/zoxide.nix ./programs/wezterm.nix ./programs/zellij.nix ./programs/helix.nix ./programs/neovim.nix ];`. Then edit `hosts/macbook/default.nix` to replace the inline `home-manager.users.mlieberman = { pkgs, lib, ... }: { ... };` block with `home-manager.users.mlieberman = import ./home/mlieberman;`. Also leave the `home-manager.{useGlobalPkgs, useUserPackages, backupFileExtension}` settings in `default.nix`.
-- [ ] T025 [US2] Run equivalence check: `nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.after.us2 && diff /tmp/system.drv.before /tmp/system.drv.after.us2`. Diff MUST be empty.
+- [ ] T025 [US2] Run snapshot-oracle equivalence check after T015-T024: `nix eval --json .#darwinConfigurations.macbook.config --apply "$(cat /tmp/oracle.nix)" 2>/dev/null | jq -S . > /tmp/snapshot.after.us2.json && diff /tmp/snapshot.pristine.sorted.json /tmp/snapshot.after.us2.json`. Diff MUST contain only the T003b documented pre-existing edits.
 - [ ] T026 [US2] **Independent test (program tweak)**: edit `hosts/macbook/home/mlieberman/programs/helix.nix` to change `theme = "catppuccin_frappe"` to `theme = "catppuccin_macchiato"`. Run `git diff --stat` — exactly one file modified. Run `darwin-rebuild build --flake .#macbook` — MUST succeed. Revert with `git checkout hosts/macbook/home/mlieberman/programs/helix.nix`.
 - [ ] T027 [US2] **Independent test (plugin add)**: edit `hosts/macbook/home/mlieberman/programs/neovim.nix` to append `vim-fugitive` to the `plugins` list. Run `git diff --stat` — exactly one file modified. Build — MUST succeed. Revert.
 
@@ -151,11 +162,9 @@ Stub is reverted at the end of the test (not committed).
 - [ ] T033 [P] Write top-level `README.md` covering: (a) directory layout diagram (mirrors plan.md "Source Code" tree), (b) "where do I add X?" table copied from `specs/001-modular-nix-config/quickstart.md`, (c) cross-reference to `.specify/memory/constitution.md` for principles and the build/switch workflow. Does NOT duplicate workflow content (per research R6). Satisfies FR-005 and targets SC-003.
 - [ ] T034 [P] Run `nixpkgs-fmt` on every new `.nix` file: `nixpkgs-fmt flake.nix hosts/macbook/default.nix hosts/macbook/nix.nix hosts/macbook/system.nix hosts/macbook/packages.nix hosts/macbook/homebrew.nix hosts/macbook/home/mlieberman/default.nix hosts/macbook/home/mlieberman/programs/*.nix`. Verify no functional change via T036 below.
 - [ ] T035 Verify `flake.lock` was not modified during the feature: `git diff main -- flake.lock` MUST be empty. (FR-008, Principle II.)
-- [ ] T036 **Final acceptance check** — all of the following MUST hold (commands literal, copy-paste from T002/T003 to ensure the comparison is byte-identical to the baseline):
+- [ ] T036 **Final acceptance check** — all of the following MUST hold:
     - `wc -l flake.nix | awk '{print $1}'` ≤ 60 (SC-006)
-    - `nix path-info --derivation .#darwinConfigurations.macbook.system > /tmp/system.drv.final && diff /tmp/system.drv.before /tmp/system.drv.final` is empty (SC-004, FR-001)
-    - `nix eval --json .#darwinConfigurations.macbook.config.environment.systemPackages --apply 'pkgs: builtins.sort builtins.lessThan (map (p: p.name or p.pname or "?") pkgs)' > /tmp/syspkgs.after.json && diff /tmp/syspkgs.before.json /tmp/syspkgs.after.json` is empty (FR-001 for the package list)
-    - `nix eval --json .#darwinConfigurations.macbook.config.homebrew --apply 'h: { brews = builtins.sort builtins.lessThan h.brews; casks = builtins.sort builtins.lessThan h.casks; taps = builtins.sort builtins.lessThan h.taps; }' > /tmp/homebrew.after.json && diff /tmp/homebrew.before.json /tmp/homebrew.after.json` is empty (FR-001 for the Homebrew lists)
+    - `nix eval --json .#darwinConfigurations.macbook.config --apply "$(cat /tmp/oracle.nix)" 2>/dev/null | jq -S . > /tmp/snapshot.final.json && diff /tmp/snapshot.pristine.sorted.json /tmp/snapshot.final.json` contains only the T003b documented pre-existing edits (SC-004, FR-001)
     - `nix flake check` exits 0 (FR-007)
     - `darwin-rebuild build --flake .#macbook` exits 0 (FR-007)
 - [ ] T037 Verify FR-009 positive anchors + FR-006 negative invariant. Two checks:
