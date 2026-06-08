@@ -6,6 +6,10 @@
       autoUpdate = true;
       upgrade = true;
       cleanup = "zap";
+      # Homebrew 4.7+ requires --force/--force-cleanup/$HOMEBREW_ASK whenever
+      # `brew bundle install --cleanup` is invoked. nix-darwin's homebrew module
+      # doesn't add the flag automatically, so pass it via extraFlags.
+      extraFlags = [ "--force-cleanup" ];
     };
     brews = [
       "dust"
