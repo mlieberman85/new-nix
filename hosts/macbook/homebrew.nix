@@ -1,0 +1,27 @@
+{ ... }:
+{
+  homebrew = {
+    enable = true;
+    onActivation = {
+      autoUpdate = true;
+      upgrade = true;
+      cleanup = "zap";
+    };
+    brews = [
+      "dust" "nx" "nono" "yabai" "skhd" "openssl" "llvm" "surreal" "colima"
+      "protobuf" "gleam" "pkg-config" "cairo" "pango" "ttyd" "minder" "yq"
+      "grpcurl" "cmake" "duckdb" "atlassian-plugin-sdk" "osv-scanner" "freerdp"
+      "deno" "poppler" "wtfutil" "aichat" "task" "taskwarrior-tui" "jj" "aider"
+      "ollama" "binsider" "trufflehog" "zola" "jjui" "act" "docker"
+      "golangci-lint" "uv" "snyk" "valkey" "pnpm" "binaryen" "googleworkspace-cli"
+    ];
+    casks = [
+      "visual-studio-code" "1password-cli" "font-hack-nerd-font" "warp" "alfred"
+      "bruno" "mockoon" "ghostty" "zed"
+    ];
+    taps = [
+      "koekeishiya/formulae" "surrealdb/tap" "stacklok/tap"
+      "atlassian/tap" "defenseunicorns/tap" "PeonPing/tap"
+    ];
+  };
+}
