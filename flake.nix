@@ -12,16 +12,16 @@
   };
 
   outputs = inputs@{ self, darwin, nixpkgs, home-manager }:
-  let
-    system = "aarch64-darwin";
-  in
-  {
-    darwinConfigurations."macbook" = darwin.lib.darwinSystem {
-      inherit system;
-      modules = [
-        home-manager.darwinModules.home-manager
-        ./hosts/macbook
-      ];
+    let
+      system = "aarch64-darwin";
+    in
+    {
+      darwinConfigurations."macbook" = darwin.lib.darwinSystem {
+        inherit system;
+        modules = [
+          home-manager.darwinModules.home-manager
+          ./hosts/macbook
+        ];
+      };
     };
-  };
 }

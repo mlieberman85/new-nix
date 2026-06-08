@@ -142,11 +142,11 @@ Stub is reverted at the end of the test (not committed).
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Create stub `hosts/testhost/default.nix` with a minimal module: `{ config, pkgs, lib, ... }: { system.primaryUser = "testuser"; system.stateVersion = 4; nixpkgs.config.allowUnfree = false; }` (sufficient for nix-darwin evaluation to type-check; need not be a complete buildable system).
-- [ ] T029 [US3] Add one new entry under `darwinConfigurations` in `flake.nix`: `darwinConfigurations."testhost" = darwin.lib.darwinSystem { inherit system; modules = [ ./hosts/testhost ]; };`. The diff for this change MUST touch only `flake.nix` (one new entry) and the new `hosts/testhost/` directory.
-- [ ] T030 [US3] Verify additive property: `git status --porcelain | grep -E '^.M hosts/macbook/'` MUST produce no output. (No file under the macbook host was modified.)
-- [ ] T031 [US3] Verify evaluation: `nix flake check` MUST exit 0 with the stub host registered.
-- [ ] T032 [US3] Revert the stub: `git checkout flake.nix && rm -rf hosts/testhost/`. The testhost is a verification probe, not a real host — do NOT commit it.
+- [X] T028 [US3] Create stub `hosts/testhost/default.nix` with a minimal module. **Done 2026-06-08.**
+- [X] T029 [US3] Add one new entry under `darwinConfigurations` in `flake.nix`. **Done 2026-06-08.**
+- [X] T030 [US3] Verify additive property: `git status --porcelain | grep '^.M hosts/macbook/'` MUST produce no output. **Verified 2026-06-08: zero hits — hosts/macbook/ untouched.**
+- [X] T031 [US3] Verify evaluation: `nix flake check` MUST exit 0 with the stub host registered. **Verified 2026-06-08: both darwinConfigurations.macbook AND darwinConfigurations.testhost evaluate, exit 0.**
+- [X] T032 [US3] Revert the stub: `git rm --cached`, `git checkout flake.nix`, `rm -rf hosts/testhost/`. **Done 2026-06-08: working tree restored, no testhost residue.**
 
 **Checkpoint**: US3 verified. SC-005 holds. The layout is second-host-ready without further structural work.
 
@@ -156,15 +156,15 @@ Stub is reverted at the end of the test (not committed).
 
 **Purpose**: README, formatting pass, and final acceptance validation.
 
-- [ ] T033 [P] Write top-level `README.md` covering: (a) directory layout diagram (mirrors plan.md "Source Code" tree), (b) "where do I add X?" table copied from `specs/001-modular-nix-config/quickstart.md`, (c) cross-reference to `.specify/memory/constitution.md` for principles and the build/switch workflow. Does NOT duplicate workflow content (per research R6). Satisfies FR-005 and targets SC-003.
-- [ ] T034 [P] Run `nixpkgs-fmt` on every new `.nix` file: `nixpkgs-fmt flake.nix hosts/macbook/default.nix hosts/macbook/nix.nix hosts/macbook/system.nix hosts/macbook/packages.nix hosts/macbook/homebrew.nix hosts/macbook/home/mlieberman/default.nix hosts/macbook/home/mlieberman/programs/*.nix`. Verify no functional change via T036 below.
-- [ ] T035 Verify `flake.lock` was not modified during the feature: `git diff main -- flake.lock` MUST be empty. (FR-008, Principle II.)
-- [ ] T036 **Final acceptance check** — all of the following MUST hold:
-    - `wc -l flake.nix | awk '{print $1}'` ≤ 60 (SC-006)
-    - `nix eval --json .#darwinConfigurations.macbook.config --apply "$(cat /tmp/oracle.nix)" 2>/dev/null | jq -S . > /tmp/snapshot.final.json && diff /tmp/snapshot.pristine.sorted.json /tmp/snapshot.final.json` contains only the T003b documented pre-existing edits (SC-004, FR-001)
-    - `nix flake check` exits 0 (FR-007)
-    - `darwin-rebuild build --flake .#macbook` exits 0 (FR-007)
-- [ ] T037 Verify FR-009 positive anchors + FR-006 negative invariant. Two checks:
+- [X] T033 [P] Write top-level `README.md` covering directory layout, where-do-I-add-X table, and cross-references to constitution + R1/R9 discoveries. **Done 2026-06-08: README.md created, ~95 lines.**
+- [X] T034 [P] Run `nixpkgs-fmt` on every `.nix` file. **Done 2026-06-08: 3 of 15 files reformatted (flake.nix whitespace; packages.nix and homebrew.nix lists rewrapped one-item-per-line per nixpkgs-fmt opinion). Snapshot oracle confirms content-neutral.**
+- [X] T035 Verify `flake.lock` was not modified during the feature: `git diff main -- flake.lock` MUST be empty. **Verified 2026-06-08: empty diff. FR-008 / Principle II satisfied.**
+- [X] T036 **Final acceptance check** — all of the following hold:
+    - `wc -l flake.nix` = 27 ≤ 60 (SC-006) ✅
+    - Snapshot oracle diff = the 3 pre-existing-edit blocks; zero refactor drift (SC-004, FR-001) ✅
+    - `nix flake check` exits 0 (FR-007) ✅
+    - `darwin-rebuild build --flake .#macbook` realized `/nix/store/hgisw99bn616p6wvw5j09lkyqzr73075-darwin-system-26.05.8c62fba` (FR-007) ✅
+- [X] T037 Verify FR-009 positive anchors + FR-006 negative invariant. **Verified 2026-06-08: 5/5 FR-009 anchors present exactly once across `flake.nix` + `hosts/`; no `nix.enable = true` anywhere; `nix.enable = false` correctly set in `hosts/macbook/nix.nix:5`.** Two checks (script form below):
 
     (a) Each of the five FR-009 anchors MUST appear exactly once across `flake.nix` and `hosts/`:
     ```sh
