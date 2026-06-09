@@ -186,7 +186,7 @@ Stub is reverted at the end of the test (not committed).
     fi
     echo "FR-006 boundary OK (nix.enable = true does not appear)."
     ```
-- [ ] T038 Run `darwin-rebuild switch --flake .#macbook`. (Per Principle V, only after T036 build is clean.) Open a fresh shell and exercise: `helix --version`, `nvim --version`, `bun --version`, `darwin-rebuild --list-generations | tail -3`. Any breakage triggers `darwin-rebuild --rollback` and a return to the failing task.
+- [X] T038 Run `darwin-rebuild switch --flake .#macbook`. **Done 2026-06-09. First attempt (system-11, 14:09 Jun 8) failed during the homebrew activation step due to a Homebrew 4.7+ CLI compat issue (unrelated to the refactor): `brew bundle install --cleanup` now requires `--force-cleanup`, which pinned nix-darwin doesn't pass automatically. Fixed by adding `homebrew.onActivation.extraFlags = [ "--force-cleanup" ]` (commit d6ea8e9, separate from the refactor). Second attempt (system-12, 16:15 Jun 8) succeeded; user confirmed. Package set in `/run/current-system/sw/bin` byte-identical between pre-refactor (system-10) and post-refactor (system-12), as the snapshot oracle predicted.**
 
 ---
 
