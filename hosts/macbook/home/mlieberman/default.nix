@@ -23,4 +23,10 @@
       fi
     fi
   '';
+
+  home.activation.dockerComposePlugin = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD mkdir -p $HOME/.docker/cli-plugins
+    $DRY_RUN_CMD ln -sf /opt/homebrew/opt/docker-compose/bin/docker-compose \
+      $HOME/.docker/cli-plugins/docker-compose
+  '';
 }

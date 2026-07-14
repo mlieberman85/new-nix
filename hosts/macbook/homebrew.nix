@@ -1,5 +1,21 @@
 { ... }:
 {
+  nix-homebrew = {
+    enable = true;
+    user = "mlieberman";
+    autoMigrate = true;
+    trust.taps = [
+      "koekeishiya/formulae"
+      "surrealdb/tap"
+      "stacklok/tap"
+      "defenseunicorns/tap"
+      "PeonPing/tap"
+      "snyk/tap"
+      "minio/stable"
+      "nats-io/nats-tools"
+    ];
+  };
+
   homebrew = {
     enable = true;
     onActivation = {
@@ -15,8 +31,6 @@
       "dust"
       "nx"
       "nono"
-      "yabai"
-      "skhd"
       "openssl"
       "llvm"
       "surreal"
@@ -32,7 +46,6 @@
       "grpcurl"
       "cmake"
       "duckdb"
-      "atlassian-plugin-sdk"
       "osv-scanner"
       "freerdp"
       "deno"
@@ -50,6 +63,8 @@
       "jjui"
       "act"
       "docker"
+      "docker-compose"
+      "cosign"
       "golangci-lint"
       "uv"
       "snyk"
@@ -57,6 +72,11 @@
       "pnpm"
       "binaryen"
       "googleworkspace-cli"
+      "rbenv"
+      "ruby-build"
+      "minio/stable/mc"
+      "nats-io/nats-tools/nats"
+      "libpq"
     ];
     casks = [
       "visual-studio-code"
@@ -73,9 +93,11 @@
       "koekeishiya/formulae"
       "surrealdb/tap"
       "stacklok/tap"
-      "atlassian/tap"
       "defenseunicorns/tap"
       "PeonPing/tap"
+      "snyk/tap"
+      "minio/stable"
+      "nats-io/nats-tools"
     ];
   };
 }

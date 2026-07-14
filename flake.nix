@@ -9,9 +9,11 @@
 
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
+
+    nix-homebrew.url = "github:zhaofengli/nix-homebrew";
   };
 
-  outputs = inputs@{ self, darwin, nixpkgs, home-manager }:
+  outputs = inputs@{ self, darwin, nixpkgs, home-manager, nix-homebrew }:
     let
       system = "aarch64-darwin";
     in
@@ -20,6 +22,7 @@
         inherit system;
         modules = [
           home-manager.darwinModules.home-manager
+          nix-homebrew.darwinModules.nix-homebrew
           ./hosts/macbook
         ];
       };
