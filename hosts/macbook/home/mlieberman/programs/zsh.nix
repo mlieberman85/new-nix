@@ -15,6 +15,15 @@
       [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
       eval "$(rbenv init - zsh)"
       eval "$(starship init zsh)"
+
+      # Nag (don't act) when this repo's flake.lock has gone stale.
+      if [[ -o interactive && -f $HOME/Projects/new-nix/flake.lock ]]; then
+        _nix_age=$(( ($(date +%s) - $(stat -f %m $HOME/Projects/new-nix/flake.lock)) / 86400 ))
+        if (( _nix_age > 14 )); then
+          print -P "%F{yellow}nix config is ''${_nix_age}d stale — run ~/Projects/new-nix/update.sh%f"
+        fi
+        unset _nix_age
+      fi
     '';
   };
 }
