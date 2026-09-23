@@ -11,9 +11,12 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
+
+    claude-code-nix.url = "github:sadjow/claude-code-nix";
+    claude-code-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs@{ self, darwin, nixpkgs, home-manager, nix-homebrew }:
+  outputs = inputs@{ self, darwin, nixpkgs, home-manager, nix-homebrew, claude-code-nix }:
     let
       system = "aarch64-darwin";
     in
@@ -23,6 +26,7 @@
         modules = [
           home-manager.darwinModules.home-manager
           nix-homebrew.darwinModules.nix-homebrew
+          { nixpkgs.overlays = [ claude-code-nix.overlays.default ]; }
           ./hosts/macbook
         ];
       };
