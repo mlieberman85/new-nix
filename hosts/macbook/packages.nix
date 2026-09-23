@@ -15,7 +15,6 @@ in
     gitui
     go
     slack
-    element-desktop
     mas
     rustup
     starship
@@ -43,9 +42,11 @@ in
     crane
     gdk
     awscli2
+    ssm-session-manager-plugin
     nixpkgs-fmt
     eza
     hyperfine
+    go-task
     claude-code
   ];
 }

@@ -13,6 +13,7 @@
       "snyk/tap"
       "minio/stable"
       "nats-io/nats-tools"
+      "hashicorp/tap"
     ];
   };
 
@@ -52,8 +53,6 @@
       "poppler"
       "wtfutil"
       "aichat"
-      "task"
-      "taskwarrior-tui"
       "jj"
       "aider"
       "ollama"
@@ -77,6 +76,7 @@
       "minio/stable/mc"
       "nats-io/nats-tools/nats"
       "libpq"
+      "hashicorp/tap/terraform"
     ];
     casks = [
       "visual-studio-code"
@@ -98,6 +98,7 @@
       "snyk/tap"
       "minio/stable"
       "nats-io/nats-tools"
+      "hashicorp/tap"
     ];
   };
 }

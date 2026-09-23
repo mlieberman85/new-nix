@@ -88,7 +88,7 @@ appears in the tree. A second occurrence anywhere is a regression.
 for readability provided the set is identical):
 
 ```
-asciinema bat btop gh gitui go slack element-desktop mas rustup starship
+asciinema bat btop gh gitui go slack mas rustup starship
 nodejs yarn bun tmux jq ko syft bunyan-rs direnv htop helix zellij lsd
 ripgrep yazi zoxide fzf alacritty wezterm viu buf crane gdk awscli2
 nixpkgs-fmt eza hyperfine claude-code
