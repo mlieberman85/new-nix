@@ -91,7 +91,8 @@ for readability provided the set is identical):
 asciinema bat btop gh gitui go slack mas rustup starship
 nodejs yarn bun tmux jq ko syft bunyan-rs direnv htop helix zellij lsd
 ripgrep yazi zoxide fzf alacritty wezterm viu buf crane gdk awscli2
-nixpkgs-fmt eza hyperfine claude-code
+ssm-session-manager-plugin nixpkgs-fmt shellcheck eza hyperfine go-task
+claude-code
 ```
 
 **Validation**: the post-refactor `environment.systemPackages` set MUST be

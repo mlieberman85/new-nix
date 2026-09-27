@@ -44,6 +44,7 @@ in
     awscli2
     ssm-session-manager-plugin
     nixpkgs-fmt
+    shellcheck
     eza
     hyperfine
     go-task
