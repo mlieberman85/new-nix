@@ -88,6 +88,7 @@
       "mockoon"
       "ghostty"
       "zed"
+      "secretive"
     ];
     taps = [
       "koekeishiya/formulae"
